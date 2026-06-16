@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "cf53c4d4-cc99-4ef2-8bce-cea14f068cb1",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/GameStart.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

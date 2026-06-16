@@ -1,0 +1,55 @@
+
+dianji3.png
+size: 4096,4096
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+shui_1
+  rotate: false
+  xy: 212, 219
+  size: 43, 40
+  orig: 45, 42
+  offset: 1, 1
+  index: -1
+shui_2
+  rotate: true
+  xy: 385, 212
+  size: 87, 89
+  orig: 89, 91
+  offset: 1, 1
+  index: -1
+shui_3
+  rotate: true
+  xy: 385, 301
+  size: 127, 130
+  orig: 129, 132
+  offset: 1, 1
+  index: -1
+shui_4
+  rotate: true
+  xy: 212, 261
+  size: 167, 171
+  orig: 169, 173
+  offset: 1, 1
+  index: -1
+shui_5
+  rotate: true
+  xy: 205, 21
+  size: 180, 198
+  orig: 182, 200
+  offset: 1, 1
+  index: -1
+shui_6
+  rotate: false
+  xy: 2, 2
+  size: 201, 199
+  orig: 203, 201
+  offset: 1, 1
+  index: -1
+shui_7
+  rotate: false
+  xy: 2, 203
+  size: 208, 225
+  orig: 210, 227
+  offset: 1, 1
+  index: -1

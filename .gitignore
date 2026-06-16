@@ -1,0 +1,15 @@
+.DS_Store
+
+# Cocos Creator generated folders
+CC-003/library/
+CC-003/temp/
+CC-003/local/
+CC-003/build/
+CC-003/profiles/
+CC-003/native/
+CC-003/.git-cc003-backup/
+
+# Dependencies and editor files
+CC-003/node_modules/
+.vscode/
+.idea/

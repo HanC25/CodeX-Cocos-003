@@ -1,0 +1,34 @@
+
+44.png
+size: 4096,4096
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1s
+  rotate: false
+  xy: 833, 2
+  size: 275, 217
+  orig: 277, 219
+  offset: 1, 1
+  index: -1
+2s
+  rotate: false
+  xy: 2, 5
+  size: 275, 214
+  orig: 277, 216
+  offset: 1, 1
+  index: -1
+3s
+  rotate: false
+  xy: 279, 4
+  size: 275, 215
+  orig: 277, 217
+  offset: 1, 1
+  index: -1
+4s
+  rotate: false
+  xy: 556, 4
+  size: 275, 215
+  orig: 277, 217
+  offset: 1, 1
+  index: -1
