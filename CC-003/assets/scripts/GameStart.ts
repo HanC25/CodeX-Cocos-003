@@ -67,6 +67,12 @@ export class GameStart extends Component {
     @property({ type: [Node] })
     public bgNodes: Node[] = [];
 
+    @property({ type: [Node] })
+    public coverNodes: Node[] = [];
+
+    @property({ type: [Node] })
+    public coverStartNodes: Node[] = [];
+
     @property
     public bottomPadding = 20;
 
@@ -157,10 +163,12 @@ export class GameStart extends Component {
     private fishInteractionBusy: boolean[] = [];
     private fishFeedbackBusy: boolean[] = [];
     private fishFeedbackTokens: number[] = [];
+    private gameStarted = false;
 
     start() {
-        this.playOpeningDrop();
         this.registerFishInput();
+        this.registerCoverInput();
+        this.showCover();
     }
 
     update(deltaTime: number) {
@@ -204,6 +212,63 @@ export class GameStart extends Component {
         });
 
         this.updateBgDropStage(deltaTime);
+    }
+
+    private showCover() {
+        this.gameStarted = false;
+        this.coverNodes.forEach((node) => {
+            if (node) {
+                node.active = true;
+            }
+        });
+
+        this.fishes.forEach((fish) => {
+            if (fish) {
+                fish.active = false;
+            }
+        });
+
+        this.bgNodes.forEach((bg) => {
+            if (bg) {
+                bg.active = false;
+            }
+        });
+
+        if (this.coverNodes.length === 0) {
+            this.startGameFromCover();
+        }
+    }
+
+    private registerCoverInput() {
+        this.coverStartNodes.forEach((node) => {
+            if (!node) {
+                return;
+            }
+
+            node.on(Node.EventType.TOUCH_END, this.startGameFromCover, this);
+        });
+    }
+
+    private startGameFromCover() {
+        if (this.gameStarted) {
+            return;
+        }
+
+        this.gameStarted = true;
+
+        this.coverNodes.forEach((node) => {
+            if (node) {
+                node.active = false;
+            }
+        });
+
+        this.fishes.forEach((fish) => {
+            if (fish) {
+                fish.active = true;
+            }
+        });
+
+        this.playOpeningDrop();
     }
 
     private playOpeningDrop() {
