@@ -1178,7 +1178,9 @@
     "maxBgSwingCycles": 6,
     "bgSpawnAfterEnterDelay": 1,
     "bgSameLaneMinCenterGap": 260,
-    "bgSameLaneSpawnInterval": 5
+    "bgSameLaneSpawnInterval": 5,
+    "interactionBgDropSpeed": 420,
+    "feedbackTriggerDistance": 20
   },
   {
     "__type__": "cc.Node",
