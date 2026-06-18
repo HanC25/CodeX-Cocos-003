@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, UITransform, Vec3, sp } from 'cc';
+import { _decorator, Color, Component, Label, Mask, Node, Sprite, SpriteFrame, UITransform, Vec3, sp } from 'cc';
 
 const { ccclass, property } = _decorator;
 
@@ -37,6 +37,15 @@ interface BgDropState {
     feedbackTriggered: boolean;
 }
 
+type GamePerson = 'single' | 'double';
+type GameSpeed = 'normal' | 'fast';
+
+interface GameSettings {
+    gameperson: GamePerson;
+    gamespeed: GameSpeed;
+    gametime: number;
+}
+
 const FISH_BOUNDS: FishBounds[] = [
     { centerX: -516.13, bottom: -287.85 },
     { centerX: -201.35, bottom: -286.66 },
@@ -51,6 +60,8 @@ const EAT_ANIMATION = '5_chi';
 const WIN_ANIMATION = '4_shengli';
 const LOSE_ANIMATION = '3_shibai';
 const FISH_HIT_PADDING = 30;
+const SETTIME_DIGIT_SPACING = 100;
+const SETTIME_SNAP_THRESHOLD = SETTIME_DIGIT_SPACING / 2;
 
 const SHAPE_CATEGORIES = {
     triangle: ['yu4', 'bg2', 'bg4', 'bg6', 'bg11', 'bg14', 'bg18', 'bg19', 'bg20', 'bg21', 'bg22'],
@@ -72,6 +83,69 @@ export class GameStart extends Component {
 
     @property({ type: [Node] })
     public coverStartNodes: Node[] = [];
+
+    @property({ type: [Node] })
+    public settingNodes: Node[] = [];
+
+    @property({ type: [Node] })
+    public settingOpenNodes: Node[] = [];
+
+    @property({ type: Node })
+    public setdouble: Node | null = null;
+
+    @property({ type: Node })
+    public setsingle: Node | null = null;
+
+    @property({ type: Node })
+    public setfast: Node | null = null;
+
+    @property({ type: Node })
+    public setnormal: Node | null = null;
+
+    @property({ type: Node })
+    public setclose: Node | null = null;
+
+    @property({ type: Node })
+    public setok: Node | null = null;
+
+    @property({ type: Node })
+    public settime: Node | null = null;
+
+    @property({ type: [Node] })
+    public settimeTouchNodes: Node[] = [];
+
+    @property({ type: Node })
+    public settimeLeft: Node | null = null;
+
+    @property({ type: Node })
+    public settimeCenter: Node | null = null;
+
+    @property({ type: Node })
+    public settimeRight: Node | null = null;
+
+    @property({ type: SpriteFrame })
+    public setdoubleSelected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setdoubleUnselected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setsingleSelected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setsingleUnselected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setfastSelected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setfastUnselected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setnormalSelected: SpriteFrame | null = null;
+
+    @property({ type: SpriteFrame })
+    public setnormalUnselected: SpriteFrame | null = null;
 
     @property
     public bottomPadding = 20;
@@ -164,10 +238,18 @@ export class GameStart extends Component {
     private fishFeedbackBusy: boolean[] = [];
     private fishFeedbackTokens: number[] = [];
     private gameStarted = false;
+    private savedSettings: GameSettings = { gameperson: 'single', gamespeed: 'normal', gametime: 3 };
+    private tempSettings: GameSettings = { gameperson: 'single', gamespeed: 'normal', gametime: 3 };
+    private settingVisible = false;
+    private settimeTouchStartX: number | null = null;
+    private settimeTouchLastX: number | null = null;
+    private settimeDragOffsetX = 0;
+    private settimeDigitBaseX: [number, number, number] | null = null;
 
     start() {
         this.registerFishInput();
         this.registerCoverInput();
+        this.registerSettingInput();
         this.showCover();
     }
 
@@ -216,6 +298,7 @@ export class GameStart extends Component {
 
     private showCover() {
         this.gameStarted = false;
+        this.hideSettings();
         this.coverNodes.forEach((node) => {
             if (node) {
                 node.active = true;
@@ -247,6 +330,275 @@ export class GameStart extends Component {
 
             node.on(Node.EventType.TOUCH_END, this.startGameFromCover, this);
         });
+    }
+
+    private registerSettingInput() {
+        this.settingOpenNodes.forEach((node) => {
+            if (!node) {
+                return;
+            }
+
+            node.on(Node.EventType.TOUCH_END, this.handleOpenSettings, this);
+        });
+
+        this.settingNodes.forEach((node) => {
+            if (!node) {
+                return;
+            }
+
+            node.on(Node.EventType.TOUCH_START, this.stopTouchEvent, this);
+            node.on(Node.EventType.TOUCH_MOVE, this.stopTouchEvent, this);
+            node.on(Node.EventType.TOUCH_END, this.stopTouchEvent, this);
+        });
+
+        this.setdouble?.on(Node.EventType.TOUCH_END, this.handleSetDouble, this);
+        this.setsingle?.on(Node.EventType.TOUCH_END, this.handleSetSingle, this);
+        this.setfast?.on(Node.EventType.TOUCH_END, this.handleSetFast, this);
+        this.setnormal?.on(Node.EventType.TOUCH_END, this.handleSetNormal, this);
+        this.setclose?.on(Node.EventType.TOUCH_END, this.handleCloseSettings, this);
+        this.setok?.on(Node.EventType.TOUCH_END, this.handleConfirmSettings, this);
+        const timeTouchNodes = this.settimeTouchNodes.length > 0
+            ? this.settimeTouchNodes
+            : [this.settime, this.settimeLeft, this.settimeCenter, this.settimeRight];
+
+        timeTouchNodes.forEach((node) => {
+            node?.on(Node.EventType.TOUCH_START, this.handleSettimeTouchStart, this);
+            node?.on(Node.EventType.TOUCH_MOVE, this.handleSettimeTouchMove, this);
+            node?.on(Node.EventType.TOUCH_END, this.handleSettimeTouchEnd, this);
+            node?.on(Node.EventType.TOUCH_CANCEL, this.handleSettimeTouchEnd, this);
+        });
+    }
+
+    private handleOpenSettings(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.showSettings();
+    }
+
+    private showSettings() {
+        this.settingVisible = true;
+        this.tempSettings = { ...this.savedSettings };
+        this.settingNodes.forEach((node) => {
+            if (node) {
+                node.active = true;
+            }
+        });
+        this.ensureSettimeMask();
+        this.updateSettingVisuals();
+    }
+
+    private hideSettings() {
+        this.settingVisible = false;
+        this.settimeTouchStartX = null;
+        this.settimeTouchLastX = null;
+        this.settimeDragOffsetX = 0;
+        this.resetSettimeDigitPositions();
+        this.settingNodes.forEach((node) => {
+            if (node) {
+                node.active = false;
+            }
+        });
+    }
+
+    private handleSetDouble(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.tempSettings.gameperson = 'double';
+        this.updateSettingVisuals();
+    }
+
+    private handleSetSingle(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.tempSettings.gameperson = 'single';
+        this.updateSettingVisuals();
+    }
+
+    private handleSetFast(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.tempSettings.gamespeed = 'fast';
+        this.updateSettingVisuals();
+    }
+
+    private handleSetNormal(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.tempSettings.gamespeed = 'normal';
+        this.updateSettingVisuals();
+    }
+
+    private handleCloseSettings(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.tempSettings = { ...this.savedSettings };
+        this.updateSettingVisuals();
+        this.hideSettings();
+    }
+
+    private handleConfirmSettings(event?: unknown) {
+        this.stopTouchEvent(event);
+        this.savedSettings = { ...this.tempSettings };
+        this.hideSettings();
+        this.startGameFromCover();
+    }
+
+    private handleSettimeTouchStart(event?: { getUILocation?: () => { x: number } }) {
+        this.stopTouchEvent(event);
+        const startX = event?.getUILocation?.().x ?? null;
+        this.settimeTouchStartX = startX;
+        this.settimeTouchLastX = startX;
+        this.settimeDragOffsetX = 0;
+        this.ensureSettimeDigitBaseX();
+        this.applySettimeDragOffset();
+    }
+
+    private handleSettimeTouchMove(event?: { getUILocation?: () => { x: number } }) {
+        this.stopTouchEvent(event);
+        if (this.settimeTouchLastX === null) {
+            return;
+        }
+
+        const currentX = event?.getUILocation?.().x ?? this.settimeTouchLastX;
+        const deltaX = currentX - this.settimeTouchLastX;
+        this.settimeTouchLastX = currentX;
+        this.settimeDragOffsetX += deltaX;
+        this.normalizeSettimeDragOffset();
+        this.applySettimeDragOffset();
+    }
+
+    private handleSettimeTouchEnd(event?: { getUILocation?: () => { x: number } }) {
+        this.stopTouchEvent(event);
+        if (this.settimeTouchStartX === null || this.settimeTouchLastX === null) {
+            return;
+        }
+
+        const endX = event?.getUILocation?.().x ?? this.settimeTouchLastX;
+        const deltaX = endX - this.settimeTouchLastX;
+        this.settimeDragOffsetX += deltaX;
+        this.normalizeSettimeDragOffset();
+
+        if (this.settimeDragOffsetX <= -SETTIME_SNAP_THRESHOLD) {
+            this.shiftSettime(1);
+        } else if (this.settimeDragOffsetX >= SETTIME_SNAP_THRESHOLD) {
+            this.shiftSettime(-1);
+        }
+
+        this.settimeTouchStartX = null;
+        this.settimeTouchLastX = null;
+        this.settimeDragOffsetX = 0;
+        this.updateSettingVisuals();
+        this.resetSettimeDigitPositions();
+    }
+
+    private updateSettingVisuals() {
+        this.setButtonSprite(this.setdouble, this.tempSettings.gameperson === 'double' ? this.setdoubleSelected : this.setdoubleUnselected);
+        this.setButtonSprite(this.setsingle, this.tempSettings.gameperson === 'single' ? this.setsingleSelected : this.setsingleUnselected);
+        this.setButtonSprite(this.setfast, this.tempSettings.gamespeed === 'fast' ? this.setfastSelected : this.setfastUnselected);
+        this.setButtonSprite(this.setnormal, this.tempSettings.gamespeed === 'normal' ? this.setnormalSelected : this.setnormalUnselected);
+        this.updateTimeDigits();
+    }
+
+    private updateTimeDigits() {
+        const center = this.wrapGameTime(this.tempSettings.gametime);
+        this.setTimeDigit(this.settimeLeft, this.wrapGameTime(center - 1), false);
+        this.setTimeDigit(this.settimeCenter, center, true);
+        this.setTimeDigit(this.settimeRight, this.wrapGameTime(center + 1), false);
+        this.applySettimeDragOffset();
+    }
+
+    private setTimeDigit(node: Node | null, value: number, selected: boolean) {
+        if (!node) {
+            return;
+        }
+
+        let label = node.getComponent(Label);
+        if (!label) {
+            label = node.addComponent(Label);
+            label.fontSize = 40;
+            label.lineHeight = 44;
+        }
+
+        label.color = selected ? new Color(255, 252, 239, 255) : new Color(118, 58, 38, 255);
+        label.string = String(value);
+    }
+
+    private setButtonSprite(node: Node | null, spriteFrame: SpriteFrame | null) {
+        const sprite = node?.getComponent(Sprite);
+        if (!sprite || !spriteFrame) {
+            return;
+        }
+
+        sprite.spriteFrame = spriteFrame;
+    }
+
+    private ensureSettimeMask() {
+        if (!this.settime || this.settime.getComponent(Mask)) {
+            return;
+        }
+
+        this.settime.addComponent(Mask);
+    }
+
+    private normalizeSettimeDragOffset() {
+        while (this.settimeDragOffsetX <= -SETTIME_DIGIT_SPACING) {
+            this.shiftSettime(1);
+            this.settimeDragOffsetX += SETTIME_DIGIT_SPACING;
+        }
+
+        while (this.settimeDragOffsetX >= SETTIME_DIGIT_SPACING) {
+            this.shiftSettime(-1);
+            this.settimeDragOffsetX -= SETTIME_DIGIT_SPACING;
+        }
+
+    }
+
+    private shiftSettime(step: number) {
+        this.tempSettings.gametime = this.wrapGameTime(this.tempSettings.gametime + step);
+        this.updateTimeDigits();
+    }
+
+    private ensureSettimeDigitBaseX() {
+        if (this.settimeDigitBaseX) {
+            return;
+        }
+
+        this.settimeDigitBaseX = [
+            this.settimeLeft?.position.x ?? 0,
+            this.settimeCenter?.position.x ?? 0,
+            this.settimeRight?.position.x ?? 0,
+        ];
+    }
+
+    private applySettimeDragOffset() {
+        this.ensureSettimeDigitBaseX();
+        const baseX = this.settimeDigitBaseX;
+        if (!baseX) {
+            return;
+        }
+
+        this.settimeLeft?.setPosition(new Vec3(baseX[0] + this.settimeDragOffsetX, this.settimeLeft.position.y, 0));
+        this.settimeCenter?.setPosition(new Vec3(baseX[1] + this.settimeDragOffsetX, this.settimeCenter.position.y, 0));
+        this.settimeRight?.setPosition(new Vec3(baseX[2] + this.settimeDragOffsetX, this.settimeRight.position.y, 0));
+    }
+
+    private resetSettimeDigitPositions() {
+        this.settimeDragOffsetX = 0;
+        this.applySettimeDragOffset();
+    }
+
+    private wrapGameTime(value: number): number {
+        if (value < 1) {
+            return 9;
+        }
+
+        if (value > 9) {
+            return 1;
+        }
+
+        return value;
+    }
+
+    private stopTouchEvent(event?: unknown) {
+        const touchEvent = event as { propagationStopped?: boolean; preventSwallow?: boolean } | undefined;
+        if (touchEvent) {
+            touchEvent.propagationStopped = true;
+            touchEvent.preventSwallow = false;
+        }
     }
 
     private startGameFromCover() {
